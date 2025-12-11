@@ -387,6 +387,6 @@ If you have any questions or run into issues:
 
 **⭐ Star this repository if it helped you build something awesome! ⭐**
 
-Made with ❤️ by [Your Name](https://github.com/yourusername)
+Made with ❤️ by [Kaleab Zelalem](https://github.com/yourusername)
 
 </div>
