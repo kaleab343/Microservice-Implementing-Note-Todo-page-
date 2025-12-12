@@ -522,4 +522,8 @@ Made with ❤️ and **revolutionary technology** by [kaleab343](https://github.
 
 *"The perfect fusion of developer experience and enterprise performance"*
 
+<<<<<<< HEAD
 </div>
+=======
+</div>
+>>>>>>> e66e1fd86266e93aad4c8814a2fe164666f891d4
