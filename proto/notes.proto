@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package notes;
+
+import "google/protobuf/timestamp.proto";
+
+// Notes Service with streaming capabilities
+service NotesService {
+  // Standard CRUD operations
+  rpc GetNotes(GetNotesRequest) returns (GetNotesResponse);
+  rpc GetNote(GetNoteRequest) returns (GetNoteResponse);
+  rpc CreateNote(CreateNoteRequest) returns (CreateNoteResponse);
+  rpc UpdateNote(UpdateNoteRequest) returns (UpdateNoteResponse);
+  rpc DeleteNote(DeleteNoteRequest) returns (DeleteNoteResponse);
+  rpc SearchNotes(SearchNotesRequest) returns (SearchNotesResponse);
+  
+  // Real-time streaming (🔥 This is where gRPC shines!)
+  rpc StreamNoteUpdates(StreamNotesRequest) returns (stream NoteUpdateEvent);
+  rpc StreamUserNotes(StreamUserNotesRequest) returns (stream Note);
+}
+
+// Request Messages
+message GetNotesRequest {
+  int32 user_id = 1;
+  int32 page = 2;
+  int32 limit = 3;
+  bool archived = 4;
+  bool pinned = 5;
+}
+
+message GetNoteRequest {
+  int32 id = 1;
+  int32 user_id = 2;
+}
+
+message CreateNoteRequest {
+  string title = 1;
+  string text = 2;
+  int32 user_id = 3;
+  repeated string tags = 4;
+  bool is_pinned = 5;
+}
+
+message UpdateNoteRequest {
+  int32 id = 1;
+  int32 user_id = 2;
+  string title = 3;
+  string text = 4;
+  repeated string tags = 5;
+  bool is_pinned = 6;
+  bool is_archived = 7;
+}
+
+message DeleteNoteRequest {
+  int32 id = 1;
+  int32 user_id = 2;
+}
+
+message SearchNotesRequest {
+  int32 user_id = 1;
+  string query = 2;
+  int32 limit = 3;
+}
+
+message StreamNotesRequest {
+  int32 user_id = 1;
+}
+
+message StreamUserNotesRequest {
+  int32 user_id = 1;
+}
+
+// Response Messages
+message GetNotesResponse {
+  bool success = 1;
+  repeated Note notes = 2;
+  PaginationInfo pagination = 3;
+  string message = 4;
+}
+
+message GetNoteResponse {
+  bool success = 1;
+  Note note = 2;
+  string message = 3;
+}
+
+message CreateNoteResponse {
+  bool success = 1;
+  Note note = 2;
+  string message = 3;
+}
+
+message UpdateNoteResponse {
+  bool success = 1;
+  Note note = 2;
+  string message = 3;
+}
+
+message DeleteNoteResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message SearchNotesResponse {
+  bool success = 1;
+  repeated Note notes = 2;
+  string query = 3;
+  string message = 4;
+}
+
+// Core Data Types
+message Note {
+  int32 id = 1;
+  string title = 2;
+  string text = 3;
+  int32 user_id = 4;
+  repeated string tags = 5;
+  bool is_pinned = 6;
+  bool is_archived = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message PaginationInfo {
+  int32 total = 1;
+  int32 page = 2;
+  int32 limit = 3;
+  int32 pages = 4;
+}
+
+// Streaming Events (🚀 Real-time magic!)
+message NoteUpdateEvent {
+  enum EventType {
+    CREATED = 0;
+    UPDATED = 1;
+    DELETED = 2;
+    PINNED = 3;
+    ARCHIVED = 4;
+  }
+  
+  EventType type = 1;
+  Note note = 2;
+  int32 user_id = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}

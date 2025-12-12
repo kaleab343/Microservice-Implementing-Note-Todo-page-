@@ -1,0 +1,283 @@
+# MicroNote - Hybrid REST + gRPC Microservices Architecture
+version: '3.8'
+
+services:
+  # MySQL Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: micronote-mysql-hybrid
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: micronote
+      MYSQL_USER: micronote_user
+      MYSQL_PASSWORD: micronote_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./DB/setup.sql:/docker-entrypoint-initdb.d/setup.sql
+    networks:
+      - micronote-hybrid-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis Cache Service
+  redis:
+    image: redis:7-alpine
+    container_name: micronote-redis-hybrid
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - micronote-hybrid-network
+    command: redis-server --appendonly yes
+
+  # Hybrid API Gateway (REST ↔ gRPC Translator)
+  api-gateway-hybrid:
+    build:
+      context: ./services/api-gateway-hybrid
+      dockerfile: Dockerfile
+    container_name: micronote-api-gateway-hybrid
+    restart: unless-stopped
+    ports:
+      - "8080:8080"  # REST API for frontend
+      - "9090:9090"  # gRPC endpoint (optional)
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - GRPC_PORT=9090
+      - AUTH_GRPC_URL=auth-service-hybrid:50001
+      - NOTES_GRPC_URL=notes-service-hybrid:50002
+      - TODOS_GRPC_URL=todos-service-hybrid:50003
+      - USER_GRPC_URL=user-service-hybrid:50004
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
+    networks:
+      - micronote-hybrid-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./logs:/app/logs
+
+  # Hybrid Auth Service (REST + gRPC)
+  auth-service-hybrid:
+    build:
+      context: ./services/auth-service-hybrid
+      dockerfile: Dockerfile
+    container_name: micronote-auth-service-hybrid
+    restart: unless-stopped
+    ports:
+      - "3001:3001"   # REST API (backward compatibility)
+      - "50001:50001" # gRPC port
+    environment:
+      - NODE_ENV=production
+      - REST_PORT=3001
+      - GRPC_PORT=50001
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=micronote
+      - DB_USER=micronote_user
+      - DB_PASSWORD=micronote_pass
+      - JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
+      - JWT_EXPIRES_IN=7d
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - micronote-hybrid-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Hybrid Notes Service (REST + gRPC)
+  notes-service-hybrid:
+    build:
+      context: ./services/notes-service-hybrid
+      dockerfile: Dockerfile
+    container_name: micronote-notes-service-hybrid
+    restart: unless-stopped
+    ports:
+      - "3002:3002"   # REST API (backward compatibility)
+      - "50002:50002" # gRPC port
+    environment:
+      - NODE_ENV=production
+      - REST_PORT=3002
+      - GRPC_PORT=50002
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=micronote
+      - DB_USER=micronote_user
+      - DB_PASSWORD=micronote_pass
+      - JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
+      - REDIS_URL=redis://redis:6379
+      - AUTH_GRPC_URL=auth-service-hybrid:50001
+    networks:
+      - micronote-hybrid-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Hybrid Todos Service (REST + gRPC)
+  todos-service-hybrid:
+    build:
+      context: ./services/todos-service-hybrid
+      dockerfile: Dockerfile
+    container_name: micronote-todos-service-hybrid
+    restart: unless-stopped
+    ports:
+      - "3003:3003"   # REST API (backward compatibility)
+      - "50003:50003" # gRPC port
+    environment:
+      - NODE_ENV=production
+      - REST_PORT=3003
+      - GRPC_PORT=50003
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=micronote
+      - DB_USER=micronote_user
+      - DB_PASSWORD=micronote_pass
+      - JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
+      - REDIS_URL=redis://redis:6379
+      - AUTH_GRPC_URL=auth-service-hybrid:50001
+    networks:
+      - micronote-hybrid-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Hybrid User Service (REST + gRPC)
+  user-service-hybrid:
+    build:
+      context: ./services/user-service-hybrid
+      dockerfile: Dockerfile
+    container_name: micronote-user-service-hybrid
+    restart: unless-stopped
+    ports:
+      - "3004:3004"   # REST API (backward compatibility)
+      - "50004:50004" # gRPC port
+    environment:
+      - NODE_ENV=production
+      - REST_PORT=3004
+      - GRPC_PORT=50004
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=micronote
+      - DB_USER=micronote_user
+      - DB_PASSWORD=micronote_pass
+      - JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
+      - REDIS_URL=redis://redis:6379
+      - AUTH_GRPC_URL=auth-service-hybrid:50001
+    networks:
+      - micronote-hybrid-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Enhanced Frontend with WebSocket support
+  frontend-hybrid:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.hybrid
+    container_name: micronote-frontend-hybrid
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080/api
+      - REACT_APP_WS_URL=ws://localhost:8080
+    networks:
+      - micronote-hybrid-network
+    depends_on:
+      - api-gateway-hybrid
+
+  # Load Balancer with gRPC support
+  nginx-hybrid:
+    image: nginx:alpine
+    container_name: micronote-nginx-hybrid
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx-hybrid.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    networks:
+      - micronote-hybrid-network
+    depends_on:
+      - api-gateway-hybrid
+      - frontend-hybrid
+
+  # Monitoring & Observability
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: micronote-prometheus
+    restart: unless-stopped
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - micronote-hybrid-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: micronote-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"  # Changed to avoid conflict
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - micronote-hybrid-network
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: micronote-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # HTTP collector
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - micronote-hybrid-network
+
+volumes:
+  mysql_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  micronote-hybrid-network:
+    driver: bridge
+
+# ======================
+# DEVELOPMENT OVERRIDES
+# ======================
+# Use: docker-compose -f docker-compose-hybrid.yml -f docker-compose-hybrid.dev.yml up

@@ -1,0 +1,228 @@
+syntax = "proto3";
+
+package todos;
+
+import "google/protobuf/timestamp.proto";
+
+// Todos Service with advanced features
+service TodosService {
+  // Standard CRUD operations
+  rpc GetTodos(GetTodosRequest) returns (GetTodosResponse);
+  rpc GetTodo(GetTodoRequest) returns (GetTodoResponse);
+  rpc CreateTodo(CreateTodoRequest) returns (CreateTodoResponse);
+  rpc UpdateTodo(UpdateTodoRequest) returns (UpdateTodoResponse);
+  rpc ToggleTodo(ToggleTodoRequest) returns (ToggleTodoResponse);
+  rpc DeleteTodo(DeleteTodoRequest) returns (DeleteTodoResponse);
+  rpc GetTodoStats(GetTodoStatsRequest) returns (GetTodoStatsResponse);
+  
+  // Real-time features (🔥 gRPC streaming power!)
+  rpc StreamTodoUpdates(StreamTodosRequest) returns (stream TodoUpdateEvent);
+  rpc StreamTodoReminders(StreamRemindersRequest) returns (stream TodoReminder);
+  
+  // Batch operations (⚡ Performance boost!)
+  rpc BatchUpdateTodos(BatchUpdateTodosRequest) returns (BatchUpdateTodosResponse);
+  rpc BatchDeleteTodos(BatchDeleteTodosRequest) returns (BatchDeleteTodosResponse);
+}
+
+// Enums
+enum Priority {
+  LOW = 0;
+  MEDIUM = 1;
+  HIGH = 2;
+}
+
+enum TodoStatus {
+  PENDING = 0;
+  IN_PROGRESS = 1;
+  COMPLETED = 2;
+  CANCELLED = 3;
+}
+
+// Request Messages
+message GetTodosRequest {
+  int32 user_id = 1;
+  int32 page = 2;
+  int32 limit = 3;
+  bool completed = 4;
+  Priority priority = 5;
+  string category = 6;
+  TodoStatus status = 7;
+}
+
+message GetTodoRequest {
+  int32 id = 1;
+  int32 user_id = 2;
+}
+
+message CreateTodoRequest {
+  string text = 1;
+  int32 user_id = 2;
+  Priority priority = 3;
+  string category = 4;
+  google.protobuf.Timestamp due_date = 5;
+  TodoStatus status = 6;
+}
+
+message UpdateTodoRequest {
+  int32 id = 1;
+  int32 user_id = 2;
+  string text = 3;
+  Priority priority = 4;
+  string category = 5;
+  google.protobuf.Timestamp due_date = 6;
+  bool completed = 7;
+  TodoStatus status = 8;
+}
+
+message ToggleTodoRequest {
+  int32 id = 1;
+  int32 user_id = 2;
+}
+
+message DeleteTodoRequest {
+  int32 id = 1;
+  int32 user_id = 2;
+}
+
+message GetTodoStatsRequest {
+  int32 user_id = 1;
+}
+
+message StreamTodosRequest {
+  int32 user_id = 1;
+}
+
+message StreamRemindersRequest {
+  int32 user_id = 1;
+}
+
+message BatchUpdateTodosRequest {
+  repeated UpdateTodoRequest todos = 1;
+}
+
+message BatchDeleteTodosRequest {
+  repeated int32 todo_ids = 1;
+  int32 user_id = 2;
+}
+
+// Response Messages
+message GetTodosResponse {
+  bool success = 1;
+  repeated Todo todos = 2;
+  PaginationInfo pagination = 3;
+  string message = 4;
+}
+
+message GetTodoResponse {
+  bool success = 1;
+  Todo todo = 2;
+  string message = 3;
+}
+
+message CreateTodoResponse {
+  bool success = 1;
+  Todo todo = 2;
+  string message = 3;
+}
+
+message UpdateTodoResponse {
+  bool success = 1;
+  Todo todo = 2;
+  string message = 3;
+}
+
+message ToggleTodoResponse {
+  bool success = 1;
+  Todo todo = 2;
+  string message = 3;
+}
+
+message DeleteTodoResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetTodoStatsResponse {
+  bool success = 1;
+  TodoStats stats = 2;
+  string message = 3;
+}
+
+message BatchUpdateTodosResponse {
+  bool success = 1;
+  repeated Todo todos = 2;
+  int32 updated_count = 3;
+  string message = 4;
+}
+
+message BatchDeleteTodosResponse {
+  bool success = 1;
+  int32 deleted_count = 2;
+  string message = 3;
+}
+
+// Core Data Types
+message Todo {
+  int32 id = 1;
+  string text = 2;
+  bool completed = 3;
+  int32 user_id = 4;
+  Priority priority = 5;
+  google.protobuf.Timestamp due_date = 6;
+  string category = 7;
+  google.protobuf.Timestamp completed_at = 8;
+  TodoStatus status = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message PaginationInfo {
+  int32 total = 1;
+  int32 page = 2;
+  int32 limit = 3;
+  int32 pages = 4;
+}
+
+message TodoStats {
+  int32 total = 1;
+  int32 completed = 2;
+  int32 pending = 3;
+  int32 overdue = 4;
+  repeated PriorityStats by_priority = 5;
+  repeated CategoryStats by_category = 6;
+}
+
+message PriorityStats {
+  Priority priority = 1;
+  int32 count = 2;
+}
+
+message CategoryStats {
+  string category = 1;
+  int32 count = 2;
+}
+
+// Streaming Events (🚀 Real-time updates!)
+message TodoUpdateEvent {
+  enum EventType {
+    CREATED = 0;
+    UPDATED = 1;
+    DELETED = 2;
+    COMPLETED = 3;
+    UNCOMPLETED = 4;
+    STATUS_CHANGED = 5;
+  }
+  
+  EventType type = 1;
+  Todo todo = 2;
+  int32 user_id = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+message TodoReminder {
+  int32 todo_id = 1;
+  string text = 2;
+  google.protobuf.Timestamp due_date = 3;
+  Priority priority = 4;
+  string reminder_message = 5;
+}
